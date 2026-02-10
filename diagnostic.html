@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LVT Website - Diagnostic Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1e293b;
+        }
+        h2 {
+            color: #5b8fc9;
+            margin-top: 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .success {
+            background: #d1f4e0;
+            color: #15803d;
+        }
+        .error {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        .info {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #5b8fc9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #4a7bb8;
+        }
+        #console {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        .console-line {
+            padding: 2px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 LVT Website - Diagnostic Test</h1>
+    
+    <div class="test-section">
+        <h2>1. File Access Test</h2>
+        <div id="fileTest">Running tests...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. GeoJSON Data Test</h2>
+        <div id="dataTest">Waiting for file test...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Console Log</h2>
+        <div id="console"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Solution</h2>
+        <div id="solution"></div>
+    </div>
+
+    <script>
+        // Capture console logs
+        const consoleDiv = document.getElementById('console');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function logToPage(message, type = 'log') {
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.style.color = type === 'error' ? '#dc2626' : '#1e293b';
+            line.textContent = `[${type.toUpperCase()}] ${message}`;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToPage(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            logToPage(args.join(' '), 'error');
+        };
+
+        // Test 1: File Access
+        async function testFileAccess() {
+            const fileTestDiv = document.getElementById('fileTest');
+            
+            try {
+                console.log('Testing file access to data/properties.geojson...');
+                const response = await fetch('data/properties.geojson');
+                
+                console.log(`Response status: ${response.status}`);
+                console.log(`Response OK: ${response.ok}`);
+                
+                if (response.ok) {
+                    fileTestDiv.innerHTML = '<div class="status success">✓ File is accessible</div>';
+                    testData();
+                } else {
+                    fileTestDiv.innerHTML = `<div class="status error">✗ HTTP Error ${response.status}</div>`;
+                    showSolution('http-error');
+                }
+            } catch (error) {
+                console.error('File access error:', error);
+                
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    fileTestDiv.innerHTML = `
+                        <div class="status error">✗ CORS Error / File Access Blocked</div>
+                        <p>The browser is blocking access to local files.</p>
+                    `;
+                    showSolution('cors-error');
+                } else {
+                    fileTestDiv.innerHTML = `<div class="status error">✗ ${error.message}</div>`;
+                    showSolution('unknown-error');
+                }
+            }
+        }
+
+        // Test 2: Data Parsing
+        async function testData() {
+            const dataTestDiv = document.getElementById('dataTest');
+            
+            try {
+                console.log('Parsing GeoJSON data...');
+                const response = await fetch('data/properties.geojson');
+                const data = await response.json();
+                
+                console.log(`GeoJSON type: ${data.type}`);
+                console.log(`Number of features: ${data.features.length}`);
+                
+                // Check first feature
+                const firstFeature = data.features[0];
+                console.log(`First property ID: ${firstFeature.properties.Label}`);
+                console.log(`First property has geometry: ${firstFeature.geometry.coordinates.length > 0 ? 'Yes' : 'No'}`);
+                
+                dataTestDiv.innerHTML = `
+                    <div class="status success">✓ GeoJSON parsed successfully</div>
+                    <p><strong>Properties:</strong> ${data.features.length.toLocaleString()}</p>
+                    <p><strong>First Property:</strong> ${firstFeature.properties.Label}</p>
+                    <p><strong>Sample Land Value/m²:</strong> £${firstFeature.properties.Land_Value_per_m2}</p>
+                `;
+                
+                showSolution('success');
+                
+            } catch (error) {
+                console.error('Data parsing error:', error);
+                dataTestDiv.innerHTML = `<div class="status error">✗ ${error.message}</div>`;
+                showSolution('parse-error');
+            }
+        }
+
+        // Show appropriate solution
+        function showSolution(issue) {
+            const solutionDiv = document.getElementById('solution');
+            
+            const solutions = {
+                'cors-error': `
+                    <div class="status error">Issue: CORS / Local File Access</div>
+                    <h3>How to Fix:</h3>
+                    <p>You're opening the HTML file directly (file://). Modern browsers block this for security.</p>
+                    
+                    <h4>Solution 1: Run a Local Web Server (Recommended)</h4>
+                    <p>Open terminal/command prompt in the lvt-website folder and run:</p>
+                    <pre>python -m http.server 8000</pre>
+                    <p>Then visit: <a href="http://localhost:8000">http://localhost:8000</a></p>
+                    
+                    <h4>Solution 2: Use Python 2 (if Python 3 not available)</h4>
+                    <pre>python -m SimpleHTTPServer 8000</pre>
+                    
+                    <h4>Solution 3: Use Node.js</h4>
+                    <pre>npx http-server</pre>
+                    
+                    <h4>Solution 4: Deploy to GitHub Pages</h4>
+                    <p>Upload to GitHub and enable Pages - works perfectly!</p>
+                `,
+                'http-error': `
+                    <div class="status error">Issue: HTTP Error</div>
+                    <p>The file exists but couldn't be loaded. Check:</p>
+                    <ul>
+                        <li>Is the file in the correct location? (data/properties.geojson)</li>
+                        <li>Are you running a web server?</li>
+                        <li>Check browser console for details</li>
+                    </ul>
+                `,
+                'parse-error': `
+                    <div class="status error">Issue: JSON Parsing Error</div>
+                    <p>The GeoJSON file may be corrupted or invalid.</p>
+                    <ul>
+                        <li>Check if the file is complete (not truncated)</li>
+                        <li>Validate at <a href="http://geojson.io" target="_blank">geojson.io</a></li>
+                    </ul>
+                `,
+                'success': `
+                    <div class="status success">✓ Everything Working!</div>
+                    <p>The data loaded successfully. You can now use the main website.</p>
+                    <p><a href="index.html">→ Go to LVT Calculator</a></p>
+                `,
+                'unknown-error': `
+                    <div class="status error">Issue: Unknown Error</div>
+                    <p>Check the console log above for details.</p>
+                `
+            };
+            
+            solutionDiv.innerHTML = solutions[issue] || solutions['unknown-error'];
+        }
+
+        // Run tests on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Starting diagnostic tests...');
+            console.log(`Current URL: ${window.location.href}`);
+            console.log(`Protocol: ${window.location.protocol}`);
+            
+            if (window.location.protocol === 'file:') {
+                console.log('⚠️  WARNING: Running from file:// protocol');
+            }
+            
+            testFileAccess();
+        });
+    </script>
+</body>
+</html>
