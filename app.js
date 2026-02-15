@@ -46,8 +46,10 @@ async function loadProperties() {
         // Display polygons on map
         displayPolygons();
         
-        // Hide loading indicator
-        document.getElementById('loadingOverlay').classList.add('hidden');
+        // Hide loading indicator after a short delay to allow rendering to start
+        setTimeout(() => {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }, 100);
         
     } catch (error) {
         console.error('Error loading properties:', error);
