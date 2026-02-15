@@ -14,7 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // Initialize Leaflet map
 function initializeMap() {
     // Center on Aberdeenshire/Aberdeen
-    map = L.map('map').setView([57.3655, -2.5205], 10);
+    // UPDATED: Enable Canvas rendering for better performance with large datasets
+    map = L.map('map', {
+        preferCanvas: true,
+        renderer: L.canvas()
+    }).setView([57.3655, -2.5205], 10);
     
     // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
