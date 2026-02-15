@@ -46,9 +46,15 @@ async function loadProperties() {
         // Display polygons on map
         displayPolygons();
         
+        // Hide loading indicator
+        document.getElementById('loadingOverlay').classList.add('hidden');
+        
     } catch (error) {
         console.error('Error loading properties:', error);
         console.error('Error details:', error.message);
+        
+        // Hide loading indicator on error
+        document.getElementById('loadingOverlay').classList.add('hidden');
         
         // More helpful error message
         const errorMsg = error.message.includes('Failed to fetch') 
