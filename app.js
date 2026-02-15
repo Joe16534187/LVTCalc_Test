@@ -3,6 +3,7 @@ let map;
 let propertiesData = null;
 let selectedProperty = null;
 let polygonLayer = null;
+let clusterGroup = null;
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,6 +27,29 @@ function initializeMap() {
         subdomains: 'abcd',
         maxZoom: 20
     }).addTo(map);
+    
+    // Create cluster group with custom styling
+    clusterGroup = L.markerClusterGroup({
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: false,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        iconCreateFunction: function(cluster) {
+            const count = cluster.getChildCount();
+            let size = 'small';
+            if (count > 100) size = 'large';
+            else if (count > 10) size = 'medium';
+            
+            return L.divIcon({
+                html: '<div><span>' + count + '</span></div>',
+                className: 'marker-cluster marker-cluster-' + size,
+                iconSize: L.point(40, 40)
+            });
+        }
+    });
+    
+    // Listen for zoom changes to switch between clusters and polygons
+    map.on('zoomend', updateDisplayMode);
 }
 
 // Load property data
@@ -43,13 +67,12 @@ async function loadProperties() {
         
         console.log(`✓ Loaded ${propertiesData.features.length} properties`);
         
-        // Display polygons on map
-        displayPolygons();
+        // Display with appropriate mode based on zoom
+        displayProperties();
         
         // Hide loading indicator and invalidate map size
         setTimeout(() => {
             document.getElementById('loadingOverlay').classList.add('hidden');
-            // Force Leaflet to recalculate map size and redraw tiles
             map.invalidateSize();
         }, 100);
         
@@ -69,10 +92,85 @@ async function loadProperties() {
     }
 }
 
-// Display polygons on map with colour coding
-function displayPolygons() {
+// Display properties based on zoom level
+function displayProperties() {
     if (!propertiesData) return;
     
+    const zoom = map.getZoom();
+    
+    if (zoom < 13) {
+        // Show clusters
+        displayClusters();
+    } else {
+        // Show individual polygons
+        displayPolygons();
+    }
+}
+
+// Display as clusters (for zoomed out view)
+function displayClusters() {
+    console.log('Displaying clusters...');
+    
+    // Remove polygon layer if it exists
+    if (polygonLayer) {
+        map.removeLayer(polygonLayer);
+        polygonLayer = null;
+    }
+    
+    // Clear and repopulate cluster group
+    clusterGroup.clearLayers();
+    
+    // Create markers for each property centroid
+    propertiesData.features.forEach(feature => {
+        if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+            // Get centroid of polygon
+            const bounds = L.geoJSON(feature).getBounds();
+            const center = bounds.getCenter();
+            
+            // Create invisible marker at centroid
+            const marker = L.marker(center, {
+                opacity: 0,
+                icon: L.divIcon({ className: 'invisible-marker' })
+            });
+            
+            // Store property data
+            marker.propertyData = feature.properties;
+            
+            // Bind popup
+            marker.bindPopup(createPopupContent(feature.properties));
+            
+            // Click handler
+            marker.on('click', function() {
+                selectProperty(this.propertyData);
+            });
+            
+            clusterGroup.addLayer(marker);
+        }
+    });
+    
+    // Add cluster group to map
+    if (!map.hasLayer(clusterGroup)) {
+        map.addLayer(clusterGroup);
+    }
+    
+    console.log('Clusters displayed');
+}
+
+// Display as polygons (for zoomed in view)
+function displayPolygons() {
+    console.log('Displaying polygons...');
+    
+    // Remove cluster layer if it exists
+    if (map.hasLayer(clusterGroup)) {
+        map.removeLayer(clusterGroup);
+    }
+    
+    // Remove existing polygon layer
+    if (polygonLayer) {
+        map.removeLayer(polygonLayer);
+    }
+    
+    // Create new polygon layer
     polygonLayer = L.geoJSON(propertiesData, {
         style: function(feature) {
             const landValuePerM2 = feature.properties.Land_Value_per_m2 || 0;
@@ -113,8 +211,12 @@ function displayPolygons() {
         }
     }).addTo(map);
     
-    // Fit map to show all properties
-    map.fitBounds(polygonLayer.getBounds(), { padding: [50, 50] });
+    console.log('Polygons displayed');
+}
+
+// Update display mode when zoom changes
+function updateDisplayMode() {
+    displayProperties();
 }
 
 // Get colour based on land value per m²
