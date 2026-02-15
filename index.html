@@ -6,6 +6,9 @@
     <title>Land Value Tax Calculator - Scotland</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 </head>
 <body>
     <header>
@@ -182,6 +185,13 @@
                             <li>Not for use in financial or legal decisions</li>
                             <li>LBTT is a one-time transaction tax</li>
                         </ul>
+                        
+                        <h4>Map Controls</h4>
+                        <ul>
+                            <li>Zoom out: Properties grouped into clusters</li>
+                            <li>Zoom in: Individual properties displayed</li>
+                            <li>Click clusters to zoom and expand</li>
+                        </ul>
                     </div>
                 </div>
             </aside>
@@ -195,6 +205,8 @@
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet MarkerCluster JavaScript -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
