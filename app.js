@@ -63,9 +63,20 @@ async function loadProperties() {
         }
         
         console.log('Parsing GeoJSON...');
-        propertiesData = await response.json();
+        const data = await response.json();
         
-        console.log(`✓ Loaded ${propertiesData.features.length} properties`);
+        // Filter out features with invalid or missing geometries
+        propertiesData = {
+            type: data.type,
+            features: data.features.filter(feature => {
+                return feature.geometry && 
+                       feature.geometry.coordinates && 
+                       feature.geometry.coordinates.length > 0 &&
+                       (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon');
+            })
+        };
+        
+        console.log(`✓ Loaded ${propertiesData.features.length} valid properties (filtered from ${data.features.length} total)`);
         
         // Display with appropriate mode based on zoom
         displayProperties();
@@ -122,29 +133,37 @@ function displayClusters() {
     
     // Create markers for each property centroid
     propertiesData.features.forEach(feature => {
-        if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-            // Get centroid of polygon
-            const bounds = L.geoJSON(feature).getBounds();
-            const center = bounds.getCenter();
+        try {
+            // Create a temporary GeoJSON layer to get bounds
+            const tempLayer = L.geoJSON(feature);
+            const bounds = tempLayer.getBounds();
             
-            // Create invisible marker at centroid
-            const marker = L.marker(center, {
-                opacity: 0,
-                icon: L.divIcon({ className: 'invisible-marker' })
-            });
-            
-            // Store property data
-            marker.propertyData = feature.properties;
-            
-            // Bind popup
-            marker.bindPopup(createPopupContent(feature.properties));
-            
-            // Click handler
-            marker.on('click', function() {
-                selectProperty(this.propertyData);
-            });
-            
-            clusterGroup.addLayer(marker);
+            // Check if bounds are valid
+            if (bounds.isValid()) {
+                const center = bounds.getCenter();
+                
+                // Create invisible marker at centroid
+                const marker = L.marker(center, {
+                    opacity: 0,
+                    icon: L.divIcon({ className: 'invisible-marker' })
+                });
+                
+                // Store property data
+                marker.propertyData = feature.properties;
+                
+                // Bind popup
+                marker.bindPopup(createPopupContent(feature.properties));
+                
+                // Click handler
+                marker.on('click', function() {
+                    selectProperty(this.propertyData);
+                });
+                
+                clusterGroup.addLayer(marker);
+            }
+        } catch (e) {
+            // Skip features that cause errors
+            console.warn('Skipping invalid feature:', e);
         }
     });
     
@@ -170,7 +189,7 @@ function displayPolygons() {
         map.removeLayer(polygonLayer);
     }
     
-    // Create new polygon layer
+    // Create new polygon layer with error handling
     polygonLayer = L.geoJSON(propertiesData, {
         style: function(feature) {
             const landValuePerM2 = feature.properties.Land_Value_per_m2 || 0;
@@ -208,6 +227,15 @@ function displayPolygons() {
                     fillOpacity: 0.6
                 });
             });
+        },
+        filter: function(feature) {
+            // Only include valid features
+            try {
+                const tempLayer = L.geoJSON(feature);
+                return tempLayer.getBounds().isValid();
+            } catch (e) {
+                return false;
+            }
         }
     }).addTo(map);
     
