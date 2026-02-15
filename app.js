@@ -46,9 +46,11 @@ async function loadProperties() {
         // Display polygons on map
         displayPolygons();
         
-        // Hide loading indicator after a short delay to allow rendering to start
+        // Hide loading indicator and invalidate map size
         setTimeout(() => {
             document.getElementById('loadingOverlay').classList.add('hidden');
+            // Force Leaflet to recalculate map size and redraw tiles
+            map.invalidateSize();
         }, 100);
         
     } catch (error) {
